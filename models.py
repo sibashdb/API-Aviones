@@ -3,7 +3,7 @@ from sqlmodel import SQLModel, Field, Relationship
 
 # Tabla intermedia Muchos-a-Muchos (Aircraft <-> Tag)
 class AircraftTagLink(SQLModel, table=True):
-    aircraft_id: int = Field(foreign_key="aircraft.id", primary_key=True)
+    aircraft_id: Optional[int] = Field(default=None, foreign_key="aircraft.id", ondelete="CASCADE")
     tag_id: int = Field(foreign_key="tag.id", primary_key=True)
 
 # Tabla de Etiquetas (Tags)
@@ -46,7 +46,10 @@ class Aircraft(SQLModel, table=True):
 
     # Conexión con imágenes (AircraftImage)
     image: Optional[AircraftImage] = Relationship(
-        sa_relationship_kwargs={"uselist": False},
+        sa_relationship_kwargs={
+            "uselist": False,
+            "cascade": "all, delete-orphan"  # <--- LA MAGIA ESTÁ AQUÍ
+        },
         back_populates="aircraft"
     )
 
@@ -54,7 +57,7 @@ class Aircraft(SQLModel, table=True):
 class AircraftImage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     url: str  # Aquí guardaremos el link público
-    aircraft_id: int = Field(foreign_key="aircraft.id")
+    aircraft_id: int = Field(foreign_key="aircraft.id", ondelete="CASCADE")
     
     # Relación inversa hacia el avión
     aircraft: Optional["Aircraft"] = Relationship(back_populates="image")

@@ -183,45 +183,40 @@ def update_aircraft(aircraft_id: int, data: AircraftUpdate, session: Session = D
     session.refresh(db_aircraft)
     return db_aircraft
 
-@router.delete("/aircraft/{aircraft_id}", summary="Eliminar una aeronave ")
+@router.delete("/aircraft/{aircraft_id}", summary="Eliminar una aeronave")
 def delete_aircraft(aircraft_id: int, session: Session = Depends(get_session)):
-    """Elimina la aeronave, limpia sus etiquetas, borra sus especificaciones y destruye sus fotos físicas en la nube."""
     db_aircraft = session.get(Aircraft, aircraft_id)
     if not db_aircraft:
         raise HTTPException(status_code=404, detail="Aeronave no encontrada")
 
     try:
-        # 1. Eliminar la imagen física del Storage en Supabase
+        # 1. Borrar la foto del Storage de Supabase (La BD no puede borrar archivos físicos)
         if db_aircraft.image:
             archivo_a_borrar = db_aircraft.image.url.split("/")[-1]
-            supabase_client.storage.from_("aircraft-images").remove([archivo_a_borrar])
-            session.delete(db_aircraft.image)
+            try:
+                supabase_client.storage.from_("aircraft-images").remove([archivo_a_borrar])
+            except Exception:
+                pass 
 
-        # Eliminar las relaciones de la tabla intermedia (Tags)
-        links = session.exec(select(AircraftTagLink).where(AircraftTagLink.aircraft_id == aircraft_id)).all()
-        for link in links:
-            session.delete(link)
-
-        #  Guardar el ID de las especificaciones para no dejar basura
         specs_id = db_aircraft.specs_id
 
-        # ¡Ahora sí! Eliminar el avión principal de forma segura
+        # 2. Borrar el avión (Supabase borrará automáticamente la imagen y los tags de la BD)
         session.delete(db_aircraft)
+        session.commit()
 
-        # Eliminar la ficha técnica (Specs) que quedó huérfana
+        # 3. Limpiar las Specs huérfanas
         if specs_id:
             specs = session.get(AircraftSpecs, specs_id)
             if specs:
                 session.delete(specs)
+                session.commit()
 
-        # Confirmar todos los cambios
-        session.commit()
-        return {"mensaje": f"Aeronave con ID {aircraft_id} y todos sus datos relacionados fueron eliminados por completo."}
+        return {"mensaje": f"Aeronave {aircraft_id} eliminada con éxito."}
         
     except Exception as e:
-        session.rollback() # Si algo falla, deshacemos los cambios para no corromper la base de datos
-        raise HTTPException(status_code=500, detail=f"Error interno al eliminar: {str(e)}")
-
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+    
 # ==========================================
 # SECCIÓN: IMÁGENES (MEDIA MULTIMEDIA)
 # ==========================================
