@@ -188,7 +188,7 @@ def delete_aircraft(aircraft_id: int, session: Session = Depends(get_session)):
     db_aircraft = session.get(Aircraft, aircraft_id)
     if not db_aircraft:
         raise HTTPException(status_code=404, detail="Aeronave no encontrada")
-
+    
     try:
         # 1. Borrar la foto del Storage de Supabase (La BD no puede borrar archivos físicos)
         if db_aircraft.image:
