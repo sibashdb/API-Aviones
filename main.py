@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import create_db_and_tables
 from routers import aircraft
+from fastapi.staticfiles import StaticFiles 
 
 tags_metadata = [
     {
@@ -14,8 +15,10 @@ app = FastAPI(
     title="SkySpecs API ",
     version="2.0.0",
     openapi_tags=tags_metadata,
-    
 )
+
+# Mount static uploads directory after app creation
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
